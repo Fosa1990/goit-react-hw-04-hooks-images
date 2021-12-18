@@ -1,4 +1,4 @@
-import React, { Component, Fragment } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import Searchbar from './components/Searchbar';
 import Button from './components/Button';
 import Gallery from './components/Gallery';
@@ -10,27 +10,19 @@ import { errorOptions, infoOptions } from './helpers/toastyOptions';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.min.css';
 
-export class App extends Component {
-  state = {
-    gallery: [],
-    isLoading: false,
-    currentPage: 1,
-    search: '',
-    error: null,
-    fullImageURL: '',
-    altImageTitle: '',
-    isModalOpen: false,
-  };
+export default function App() {
+  const [gallery, setGallery] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [fullImageURL, setFullImageURL] = useState('');
+  const [altImageTitle, setAltImageTitle] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  componentDidUpdate(prevProps, prevState) {
-    const { search } = this.state;
-    if (prevState.search !== search) this.fetchPictures();
-  }
+  useEffect(() => {
+    if (!search) return;
 
-  fetchPictures = () => {
-    const { search, currentPage } = this.state;
-
-    this.setState({ isLoading: true });
+    setIsLoading(true);
 
     API(search, currentPage)
       .then(images => {
@@ -39,52 +31,42 @@ export class App extends Component {
           return;
         }
 
-        if (images.length > 1) {
-          toast.info('Found! Your Majesty', infoOptions);
-        }
+        if (images.length > 1) toast.info('Found! Your Majesty', infoOptions);
 
-        this.setState(prevState => ({
-          gallery: [...prevState.gallery, ...images],
-          currentPage: prevState.currentPage + 1,
-        }));
+        setGallery(state => [...state, ...images]);
       })
       .catch(error => {
-        const { search } = this.state;
         toast.error(`No images by "${search}", Your Majesty`, errorOptions);
-        this.setState({ error });
+        console.log('error on catch: ', error);
       })
       .finally(() => {
-        this.onLoadMoreButtonClick();
-        this.setState({ isLoading: false });
+        setIsLoading(false);
       });
+  }, [currentPage, search]);
+
+  const onLoadMoreButtonClick = () => {
+    setCurrentPage(state => state + 1);
+
+    const options = {
+      top: null,
+      behavior: 'smooth',
+    };
+
+    options.top = window.pageYOffset + document.documentElement.clientHeight;
+    setTimeout(() => {
+      window.scrollTo(options);
+    }, 1000);
   };
 
-  handleSubmit = query => {
-    if (query !== this.state.search) {
-      this.setState({
-        gallery: [],
-        search: query,
-        currentPage: 1,
-        error: null,
-      });
+  const handleSubmit = query => {
+    if (query !== search) {
+      setGallery([]);
+      setSearch(query);
+      setCurrentPage(1);
     }
   };
 
-  onLoadMoreButtonClick = () => {
-    if (this.state.currentPage > 2) {
-      const options = {
-        top: null,
-        behavior: 'smooth',
-      };
-
-      options.top = window.pageYOffset + document.documentElement.clientHeight;
-      setTimeout(() => {
-        window.scrollTo(options);
-      }, 1000);
-    }
-  };
-
-  handleImageClick = event => {
+  const handleImageClick = event => {
     if (event.target.nodeName !== 'IMG') {
       return;
     }
@@ -94,74 +76,55 @@ export class App extends Component {
     const fullImageLink = event.target.getAttribute('data-src');
     const altImageTitle = event.target.getAttribute('alt');
 
-    this.setState({
-      fullImageURL: fullImageLink,
-      isModalOpen: true,
-      altImageTitle,
-    });
+    setFullImageURL(fullImageLink);
+    setAltImageTitle(altImageTitle);
+    setIsModalOpen(true);
   };
 
-  toggleModal = () => {
-    this.setState({
-      isModalOpen: !this.state.isModalOpen,
-    });
+  const toggleModal = () => {
+    setIsModalOpen(!isModalOpen);
 
-    if (this.state.isModalOpen) {
+    if (isModalOpen) {
       document.body.style.overflowY = 'hidden';
     }
   };
 
-  render() {
-    const {
-      search,
-      gallery,
-      isLoading,
-      fullImageURL,
-      isModalOpen,
-      altImageTitle,
-    } = this.state;
+  return (
+    <Fragment>
+      <Searchbar onSubmit={handleSubmit} />
 
-    return (
-      <Fragment>
-        <Searchbar onSubmit={this.handleSubmit} />
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        pauseOnHover
+        draggable
+        draggablePercent={60}
+      />
 
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          pauseOnHover
-          draggable
-          draggablePercent={60}
-        />
-
-        {isLoading && (
-          <Section>
-            <LoaderSpinner />
-          </Section>
-        )}
-
-        {search && (
-          <Gallery gallery={gallery} onClick={this.handleImageClick} />
-        )}
-
-        {isModalOpen && (
-          <Modal onClose={this.toggleModal}>
-            <img src={fullImageURL} alt={altImageTitle} />
-          </Modal>
-        )}
-
+      {isLoading && (
         <Section>
-          {search && gallery.length > 11 && (
-            <Button onClick={this.fetchPictures} />
-          )}
+          <LoaderSpinner />
         </Section>
-      </Fragment>
-    );
-  }
-}
+      )}
 
-export default App;
+      {search && <Gallery gallery={gallery} onClick={handleImageClick} />}
+
+      {isModalOpen && (
+        <Modal onClose={toggleModal}>
+          <img src={fullImageURL} alt={altImageTitle} />
+        </Modal>
+      )}
+
+      <Section>
+        {search && gallery.length > 11 && (
+          <Button onClick={onLoadMoreButtonClick} />
+        )}
+      </Section>
+    </Fragment>
+  );
+}
