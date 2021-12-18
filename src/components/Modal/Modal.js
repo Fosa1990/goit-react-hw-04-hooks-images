@@ -14,10 +14,10 @@ export default function Modal({ onClose, children }) {
     }
     window.addEventListener('keydown', handleKeyDown);
 
-    return function onClearup() {
+    return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, [onClose, children]);
 
   const handleBackdropClick = event => {
     if (event.target === event.currentTarget) onClose();
