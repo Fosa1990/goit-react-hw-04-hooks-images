@@ -83,10 +83,6 @@ export default function App() {
 
   const toggleModal = () => {
     setIsModalOpen(!isModalOpen);
-
-    if (isModalOpen) {
-      document.body.style.overflowY = 'hidden';
-    }
   };
 
   return (
